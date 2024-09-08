@@ -1,0 +1,45 @@
+@startuml DiagramaSequencia_AgendamentoConsulta
+
+actor Paciente as P
+participant Frontend as UI
+participant Backend as API
+participant "Gerenciamento\nde Consultas" as GC
+participant "Gerenciamento\nde Horários" as GH
+database "Banco de Dados" as BD
+
+P -> UI: Solicita agendamento de consulta (médico, data, hora)
+activate UI
+UI -> API: Envia solicitação de agendamento
+activate API
+API -> GC: Verifica disponibilidade de médico
+activate GC
+GC -> GH: Consulta horários disponíveis do médico
+activate GH
+GH -> BD: Busca horários disponíveis
+activate BD
+BD --> GH: Retorna horários disponíveis
+deactivate BD
+GH --> GC: Retorna disponibilidade do médico
+deactivate GH
+GC --> API: Retorna disponibilidade do médico
+deactivate GC
+API -> UI: Exibe disponibilidade para o paciente
+deactivate API
+P -> UI: Confirma agendamento
+activate UI
+UI -> API: Envia confirmação de agendamento
+activate API
+API -> GC: Agenda a consulta
+activate GC
+GC -> BD: Salva a consulta no banco de dados
+activate BD
+BD --> GC: Confirmação de salvamento
+deactivate BD
+GC --> API: Retorna confirmação de agendamento
+deactivate GC
+API -> UI: Exibe confirmação para o paciente
+deactivate UI
+UI --> P: Consulta agendada com sucesso
+deactivate UI
+
+@enduml

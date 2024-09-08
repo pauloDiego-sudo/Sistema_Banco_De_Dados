@@ -1,0 +1,30 @@
+@startuml DiagramaSequencia_CadastroMedico
+
+actor Admin as A
+participant Frontend as UI
+participant Backend as API
+participant "Gerenciamento\nde Usuários" as GU
+database "Banco de Dados" as BD
+
+A -> UI: Preenche dados do médico (nome, especialidade, etc.)
+activate UI
+UI -> API: Envia solicitação de cadastro
+activate API
+API -> GU: Valida dados do médico (duplicidade, etc.)
+activate GU
+alt dados válidos
+  GU -> BD: Salva novo médico no banco de dados
+  activate BD
+  BD --> GU: Confirmação de salvamento
+  deactivate BD
+  GU --> API: Retorna sucesso no cadastro
+  API -> UI: Exibe mensagem de sucesso
+else dados inválidos
+  GU --> API: Retorna erro de validação
+  API -> UI: Exibe mensagem de erro
+end
+deactivate GU
+deactivate API
+deactivate UI
+
+@enduml

@@ -1,0 +1,18 @@
+@startuml C4_Container
+
+!include <C4/C4_Container>
+
+System_Boundary(c1, "Sistema de Gerenciamento de Consultas Médicas") {
+
+  Container(frontend, "Frontend", "Next.JS", "Interface web para pacientes, médicos e administradores")
+  ContainerDb(banco_dados, "Banco de Dados", "PostgreSQL", "Armazena informações de pacientes, médicos, consultas, horários e administradores")
+  Container(backend, "Backend API", "FastAPI (Python)", "API REST para gerenciar consultas, autenticação e lógica de negócios")
+
+}
+
+Rel(frontend, backend, "Utiliza API", "HTTPS")
+Rel(backend, banco_dados, "Lê e escreve dados", "JDBC")
+
+SHOW_LEGEND()
+
+@enduml

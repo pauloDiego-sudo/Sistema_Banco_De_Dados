@@ -1,0 +1,20 @@
+@startuml C4_Componentes_Backend
+
+!include <C4/C4_Component>
+
+Container(backend, "Backend API", "FastAPI (Python)", "API REST para gerenciar consultas, autenticação e lógica de negócios") {
+
+  Component(autenticacao, "Autenticação", "Gerencia login e segurança de usuários (pacientes, médicos, administradores)")
+  Component(gerenciamento_consultas, "Gerenciamento de Consultas", "Permite agendamento, cancelamento, visualização e atualização de consultas")
+  Component(gerenciamento_horarios, "Gerenciamento de Horários", "Permite a médicos definir e ajustar seus horários disponíveis")
+  Component(gerenciamento_usuarios, "Gerenciamento de Usuários", "Gerencia cadastro, atualização e informações de pacientes, médicos e administradores")
+
+}
+
+Rel(autenticacao, gerenciamento_consultas, "Utiliza para verificar permissões")
+Rel(gerenciamento_consultas, gerenciamento_horarios, "Verifica disponibilidade de horários")
+Rel(gerenciamento_consultas, gerenciamento_usuarios, "Acessa informações de pacientes e médicos")
+
+SHOW_LEGEND()
+
+@enduml

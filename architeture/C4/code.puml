@@ -1,0 +1,62 @@
+@startuml
+
+class Paciente {
+  - id_paciente: int
+  - nome: string
+  - email: string
+  - telefone: string
+  - data_de_nascimento: Date
+  - cpf: string
+  - senha: string
+  + agendarConsulta(consulta: Consulta): void
+  + cancelarConsulta(consulta: Consulta): void
+  + visualizarHistorico(): List<Consulta>
+}
+
+class Medico {
+  - id_medico: int
+  - nome: string
+  - email: string
+  - especialidade: string
+  - telefone: string
+  - crm: string
+  - senha: string
+  + visualizarConsultas(): List<Consulta>
+  + adicionarObservacoes(consulta: Consulta, observacoes: string): void
+  + alterarStatusConsulta(consulta: Consulta, status: string): void
+  + definirHorariosDisponiveis(horarios: List<HorarioDisponivel>): void
+}
+
+class Consulta {
+  - id_consulta: int
+  - id_paciente: int
+  - id_medico: int
+  - data_consulta: Date
+  - horario_consulta: Time
+  - status: string
+  - observacoes: string
+}
+
+class HorarioDisponivel {
+  - id_horario: int
+  - id_medico: int
+  - data_disponivel: Date
+  - horario_inicial: Time
+  - horario_final: Time
+}
+
+class Admin {
+  - id_admin: int
+  - nome_admin: string
+  - email_admin: string
+  - senha_admin: string
+  + adicionarMedico(medico: Medico): void
+  + supervisionarConsultas(): List<Consulta>
+  + gerarRelatorios(): void 
+}
+
+Paciente "1" -- "*" Consulta
+Medico "1" -- "*" Consulta
+Medico "1" -- "*" HorarioDisponivel
+
+@enduml

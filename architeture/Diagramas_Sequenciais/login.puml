@@ -1,0 +1,31 @@
+@startuml DiagramaSequencia_LoginPaciente
+
+actor Paciente as P
+participant Frontend as UI
+participant Backend as API
+participant "Autenticação" as Auth
+database "Banco de Dados" as BD
+
+P -> UI: Insere credenciais (email, senha)
+activate UI
+UI -> API: Envia solicitação de login
+activate API
+API -> Auth: Valida credenciais
+activate Auth
+Auth -> BD: Busca usuário por email
+activate BD
+BD --> Auth: Retorna dados do usuário (se encontrado)
+deactivate BD
+Auth -> Auth: Verifica senha (compara com hash)
+alt senha válida
+  Auth --> API: Retorna sucesso na autenticação
+  API -> UI: Redireciona para página inicial (logado)
+else senha inválida
+  Auth --> API: Retorna erro de autenticação
+  API -> UI: Exibe mensagem de erro
+end
+deactivate Auth
+deactivate API
+deactivate UI
+
+@enduml

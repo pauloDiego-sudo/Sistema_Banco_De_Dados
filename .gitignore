@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cython debug symbols
+cython_debug/
+
+# Env files
+.env
+*.env
+
+# Test logs and coverage reports
+*.cover
+*.log
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.tox/
+.pytest_cache/
+
+# Environments
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# SQL database files
+*.db
+*.sqlite3
+
+# Docker
+*.log
+docker-compose.override.yml
+db-data/
+pgdata/
+
+# PyInstaller
+#  Usually these files are written 

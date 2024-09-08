@@ -1,0 +1,30 @@
+@startuml DiagramaSequencia_EdicaoDadosMedico
+
+actor Médico as M
+participant Frontend as UI
+participant Backend as API
+participant "Gerenciamento\nde Usuários" as GU
+database "Banco de Dados" as BD
+
+M -> UI: Edita seus dados (telefone, endereço, etc.)
+activate UI
+UI -> API: Envia solicitação de atualização
+activate API
+API -> GU: Valida dados atualizados
+activate GU
+alt dados válidos
+  GU -> BD: Atualiza dados do médico no banco de dados
+  activate BD
+  BD --> GU: Confirmação de atualização
+  deactivate BD
+  GU --> API: Retorna sucesso na atualização
+  API -> UI: Exibe mensagem de sucesso
+else dados inválidos
+  GU --> API: Retorna erro de validação
+  API -> UI: Exibe mensagem de erro
+end
+deactivate GU
+deactivate API
+deactivate UI
+
+@enduml

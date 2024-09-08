@@ -1,0 +1,50 @@
+@startuml
+entity "Paciente" as paciente {
+  +id_paciente: SERIAL <<PK>>
+  nome: VARCHAR(100)
+  email: VARCHAR(100) <<UNIQUE>>
+  telefone: VARCHAR(15)
+  data_de_nascimento: DATE
+  cpf: VARCHAR(11) <<UNIQUE>>
+  senha: VARCHAR(100)
+}
+
+entity "Medico" as medico {
+  +id_medico: SERIAL <<PK>>
+  nome: VARCHAR(100)
+  email: VARCHAR(100) <<UNIQUE>>
+  especialidade: VARCHAR(100)
+  telefone: VARCHAR(15)
+  crm: VARCHAR(10) <<UNIQUE>>
+  senha: VARCHAR(100)
+}
+
+entity "Consulta" as consulta {
+  +id_consulta: SERIAL <<PK>>
+  id_paciente: INTEGER <<FK>>
+  id_medico: INTEGER <<FK>>
+  data_consulta: DATE
+  horario_consulta: TIME
+  status: VARCHAR(20) = 'agendada'
+  observacoes: TEXT
+}
+
+entity "Horario Disponivel" as horario_disponivel {
+  +id_horario: SERIAL <<PK>>
+  id_medico: INTEGER <<FK>>
+  data_disponivel: DATE
+  horario_inicial: TIME
+  horario_final: TIME
+}
+
+entity "Admin" as admin {
+  +id_admin: SERIAL <<PK>>
+  nome_admin: VARCHAR(100)
+  email_admin: VARCHAR(100) <<UNIQUE>>
+  senha_admin: VARCHAR(100)
+}
+
+paciente ||--o{ consulta
+medico ||--o{ consulta
+medico ||--o{ horario_disponivel
+@enduml

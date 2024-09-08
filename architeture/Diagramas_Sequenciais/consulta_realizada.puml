@@ -1,0 +1,30 @@
+@startuml DiagramaSequencia_MarcarConsultaRealizada
+
+actor Médico as M
+participant Frontend as UI
+participant Backend as API
+participant "Gerenciamento\nde Consultas" as GC
+database "Banco de Dados" as BD
+
+M -> UI: Seleciona consulta para marcar como realizada
+activate UI
+UI -> API: Envia solicitação de atualização (ID da consulta)
+activate API
+API -> GC: Valida se a consulta pode ser marcada como realizada
+activate GC
+alt consulta pode ser marcada
+  GC -> BD: Atualiza status da consulta para "Realizada"
+  activate BD
+  BD --> GC: Confirmação de atualização
+  deactivate BD
+  GC --> API: Retorna sucesso na atualização
+  API -> UI: Exibe mensagem de sucesso
+else consulta não pode ser marcada
+  GC --> API: Retorna erro (motivo)
+  API -> UI: Exibe mensagem de erro
+end
+deactivate GC
+deactivate API
+deactivate UI
+
+@enduml

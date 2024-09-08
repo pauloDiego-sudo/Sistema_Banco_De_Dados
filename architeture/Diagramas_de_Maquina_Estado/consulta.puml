@@ -1,0 +1,10 @@
+@startuml DiagramaEstado_Consulta
+
+[*] --> Agendada
+Agendada --> Confirmada : Paciente confirma
+Agendada --> Cancelada : Paciente/Médico cancela
+Confirmada --> Realizada : Consulta realizada
+Confirmada --> Cancelada : Paciente/Médico cancela
+Realizada --> [*]
+
+@enduml

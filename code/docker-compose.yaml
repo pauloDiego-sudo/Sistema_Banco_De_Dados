@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=bonetti
+      - POSTGRES_PASSWORD=1762
+      - POSTGRES_DB=sistema_medico
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "6543:5432"
+
+  web:
+    build: .
+      # command: uvicorn app.main:app --host 0.0.0.0 --port 80 --reload
+    command: ["./wait-for-it.sh", "db", "--", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--reload"]
+    volumes:
+      - .:/app
+    ports:
+      - "8000:80"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

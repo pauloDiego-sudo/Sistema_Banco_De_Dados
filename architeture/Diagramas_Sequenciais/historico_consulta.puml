@@ -1,0 +1,25 @@
+@startuml DiagramaSequencia_HistoricoConsultasPaciente
+
+actor Paciente as P
+participant Frontend as UI
+participant Backend as API
+participant "Gerenciamento\nde Consultas" as GC
+database "Banco de Dados" as BD
+
+P -> UI: Solicita histórico de consultas
+activate UI
+UI -> API: Envia solicitação de histórico
+activate API
+API -> GC: Busca consultas do paciente
+activate GC
+GC -> BD: Busca consultas do paciente no banco de dados
+activate BD
+BD --> GC: Retorna histórico de consultas
+deactivate BD
+GC --> API: Retorna histórico de consultas
+deactivate GC
+API -> UI: Exibe histórico de consultas para o paciente
+deactivate API
+deactivate UI
+
+@enduml
