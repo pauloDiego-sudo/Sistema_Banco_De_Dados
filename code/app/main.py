@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from . import models, schemas, crud, database
 from .database import SessionLocal, engine
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
@@ -17,16 +17,27 @@ app = FastAPI()
 # Rotas para Autenticação
 # --------------------------------
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = b"ee9a755d2d09985b09cdbebac8969efd64a95c91ed174d55ffd1768f7d9d16f9"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Função para criar o token JWT
+# Função para criar o token JWT
 def criar_token_acesso(data: dict):
+    """
+    Cria um token JWT (JSON Web Token) de acesso.
+
+    Args:
+        data: Dados a serem codificados no token.
+        expires_delta: Tempo de expiração do token. Se None, usa ACCESS_TOKEN_EXPIRE_MINUTES.
+
+    Returns:
+        str: Token JWT codificado.
+    """
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -314,7 +325,7 @@ async def listar_consultas_paciente(id_paciente: int, db: Session = Depends(data
 @app.get("/medicos/{id_medico}/consultas", response_model=List[schemas.Consulta])
 async def listar_consultas_medico(id_medico: int, db: Session = Depends(database.get_db), usuario_atual: models.Medico = Depends(obter_usuario_atual)):
     # 1. Verificar se o usuário atual é o médico ou um administrador
-    if usuario_atual.id_medico != id_medico and not isinstance(usuario_atual, models.Admin):
+    if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != id_medico and not isinstance(usuario_atual, models.Admin):
         raise HTTPException(status_code=403, detail="Você não tem permissão para acessar as consultas deste médico")
 
     # 2. Obter as consultas do médico

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from . import models, schemas
+from sqlalchemy.exc import SQLAlchemyError
 
 # --------------------------------
 # CRUD para Paciente
@@ -14,10 +15,14 @@ def criar_paciente(db: Session, paciente: schemas.PacienteCreate):
         cpf=paciente.cpf,
         senha=paciente.senha  # Hash the password in a real application!
     )
-    db.add(db_paciente)
-    db.commit()
-    db.refresh(db_paciente)
-    return db_paciente
+    try:
+        db.add(db_paciente)
+        db.commit()  # Apenas neste ponto a transação será confirmada.
+        db.refresh(db_paciente)  # Atualiza o objeto com o ID gerado pelo banco de dados.
+        return db_paciente
+    except SQLAlchemyError:
+        db.rollback()  # Reverte a transação em caso de erro.
+        raise
 
 def obter_paciente(db: Session, id_paciente: int):
     return db.query(models.Paciente).filter(models.Paciente.id_paciente == id_paciente).first()
