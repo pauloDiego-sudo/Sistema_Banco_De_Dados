@@ -80,10 +80,18 @@ def criar_admin_falso():
         senha_admin="senha123"  # Substitua por um hash de senha em produção!
     )
 
+def criar_admin_first():
+    return AdminCreate(
+        nome_admin="Admin Admin",
+        email_admin="admin@admin.com",
+        senha_admin="senha123"  # Substitua por um hash de senha em produção!
+)
+
 # Função principal para popular o banco de dados
 def popular_banco_dados(num_pacientes=10, num_medicos=5, num_consultas=20, num_horarios=30, num_admins=2):
     db = SessionLocal()
-
+    admin_first = criar_admin_first()
+    crud.criar_admin(db,admin_first)
     # Criar admins
     for _ in range(num_admins):
         admin = criar_admin_falso()
