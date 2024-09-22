@@ -330,7 +330,14 @@ def listar_consultas(
         consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == usuario_atual.id_medico).offset(skip).limit(limit).all()
     else:  # Paciente
         consultas = db.query(models.Consulta).filter(models.Consulta.id_paciente == usuario_atual.id_paciente).offset(skip).limit(limit).all()
-    return consultas
+    
+    # Ensure all required fields are present and valid
+    valid_consultas = []
+    for consulta in consultas:
+        if consulta.id_medico is not None and consulta.id_paciente is not None:
+            valid_consultas.append(consulta)
+    
+    return valid_consultas
 
 @app.put("/consultas/{id_consulta}", response_model=schemas.Consulta)
 def atualizar_consulta(
