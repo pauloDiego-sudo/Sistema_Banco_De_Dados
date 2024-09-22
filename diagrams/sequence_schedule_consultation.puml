@@ -1,0 +1,19 @@
+@startuml
+title Sequence Diagram for Scheduling a Consultation
+
+actor User
+participant "FastAPI App" as App
+participant "Database" as DB
+
+User -> App : POST /consultas/{id_medico}/agendar
+App -> DB : Query Medico by id
+DB --> App : Medico data
+App -> DB : Query HorarioDisponivel
+DB --> App : HorarioDisponivel data
+App -> DB : Query existing Consulta
+DB --> App : Existing Consulta data
+App -> DB : Insert new Consulta
+DB --> App : New Consulta data
+App -> User : Confirmation
+
+@enduml

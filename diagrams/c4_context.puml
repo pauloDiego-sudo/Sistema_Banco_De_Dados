@@ -1,0 +1,15 @@
+@startuml
+skinparam rectangle {
+    BackgroundColor LightBlue
+}
+
+title Context Diagram
+
+actor User
+rectangle "Sistema Médico" {
+    rectangle "FastAPI Application" as FastAPIApp
+}
+
+User --> FastAPIApp : Uses
+
+@enduml

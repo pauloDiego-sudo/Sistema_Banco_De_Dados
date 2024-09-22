@@ -1,0 +1,13 @@
+@startuml
+title State Machine Diagram for Consulta
+
+[*] --> Agendada
+Agendada --> Confirmada : Confirmar
+Confirmada --> EmAndamento : Iniciar
+EmAndamento --> Finalizada : Finalizar
+[*] --> Cancelada : Cancelar
+Agendada --> Cancelada : Cancelar
+Confirmada --> Cancelada : Cancelar
+EmAndamento --> Cancelada : Cancelar
+
+@enduml

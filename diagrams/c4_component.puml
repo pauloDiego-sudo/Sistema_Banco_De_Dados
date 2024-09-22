@@ -1,0 +1,54 @@
+@startuml
+!define RECTANGLE class
+
+skinparam rectangle {
+    BackgroundColor<<Component>> LightGreen
+    BackgroundColor<<External>> LightGray
+}
+
+title Component Diagram - FastAPI Application
+
+rectangle "FastAPI Application" {
+    rectangle "Authentication Component" <<Component>> as auth {
+        [JWT Token Handler]
+        [User Authenticator]
+    }
+    
+    rectangle "Paciente Component" <<Component>> as paciente {
+        [Paciente CRUD Operations]
+    }
+    
+    rectangle "Medico Component" <<Component>> as medico {
+        [Medico CRUD Operations]
+    }
+    
+    rectangle "Consulta Component" <<Component>> as consulta {
+        [Consulta CRUD Operations]
+        [Consulta Scheduler]
+    }
+    
+    rectangle "HorarioDisponivel Component" <<Component>> as horario {
+        [HorarioDisponivel CRUD Operations]
+    }
+    
+    rectangle "Admin Component" <<Component>> as admin {
+        [Admin CRUD Operations]
+    }
+    
+    rectangle "Database Access Layer" <<Component>> as dal {
+        [SQLAlchemy ORM]
+    }
+}
+
+rectangle "PostgreSQL Database" <<External>> as db
+
+auth --> dal : Uses
+paciente --> dal : Uses
+medico --> dal : Uses
+consulta --> dal : Uses
+horario --> dal : Uses
+admin --> dal : Uses
+
+dal --> db : Reads/Writes
+
+@enduml

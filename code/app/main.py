@@ -276,16 +276,13 @@ def atualizar_medico(
         raise HTTPException(status_code=404, detail="Médico não encontrado")
     return db_medico
 
-@app.delete("/medicos/{id_medico}", response_model=schemas.Medico)
+@app.delete("/medicos/{id_medico}", response_model=schemas.DeleteMessage)
 def deletar_medico(
     id_medico: int, 
     db: Session = Depends(database.get_db),
     usuario_atual: models.Admin = Security(obter_usuario_atual, scopes=["Admin"])
 ):
-    db_medico = crud.deletar_medico(db, id_medico=id_medico)
-    if db_medico is None:
-        raise HTTPException(status_code=404, detail="Médico não encontrado")
-    return {"message": "Médico deletado com sucesso"}
+    return crud.deletar_medico(db, id_medico=id_medico)
 
 
 # --------------------------------
@@ -721,11 +718,15 @@ async def listar_consultas_medico(
     usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])
 ):
     # Verificar se o usuário atual é o médico ou um administrador
-    if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != id_medico:
-        raise HTTPException(status_code=403, detail="Você não tem permissão para acessar as consultas deste médico")
-
-    # Obter as consultas do médico
-    consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == id_medico).all()
+    if isinstance(usuario_atual, models.Medico):
+        if usuario_atual.id_medico != id_medico:
+            raise HTTPException(status_code=403, detail="Você só pode listar suas próprias consultas")
+        # Médico listando suas próprias consultas
+        consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == usuario_atual.id_medico).all()
+    else:
+        # Administrador pode listar consultas de qualquer médico
+        consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == id_medico).all()
+    
     return consultas
 
 @app.put("/consultas/{id_consulta}/confirmar", response_model=schemas.Consulta)

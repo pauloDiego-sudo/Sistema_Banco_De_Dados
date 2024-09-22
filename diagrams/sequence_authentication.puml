@@ -1,0 +1,13 @@
+@startuml
+title Sequence Diagram for User Authentication
+
+actor User
+participant "FastAPI App" as App
+participant "Database" as DB
+
+User -> App : POST /token
+App -> DB : Query user by email
+DB --> App : User data
+App -> User : JWT Token
+
+@enduml
