@@ -253,7 +253,7 @@ def listar_medicos(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(database.get_db),
-    usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])
+    usuario_atual: Union[models.Paciente, models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Medico", "Admin"])
 ):
     medicos = crud.listar_medicos(db, skip=skip, limit=limit)
     return medicos
@@ -401,12 +401,14 @@ def listar_horarios_disponiveis(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(database.get_db),
-    usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])
+    usuario_atual: Union[models.Paciente, models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Medico", "Admin"])
 ):
     if isinstance(usuario_atual, models.Admin):
-        horarios = crud.listar_horarios_disponiveis(db, skip=skip, limit=limit)
-    else:  # Medico
+        horarios = db.query(models.HorarioDisponivel).filter(models.HorarioDisponivel.id_medico.isnot(None)).offset(skip).limit(limit).all()
+    elif isinstance(usuario_atual, models.Medico):
         horarios = db.query(models.HorarioDisponivel).filter(models.HorarioDisponivel.id_medico == usuario_atual.id_medico).offset(skip).limit(limit).all()
+    else:  # Paciente
+        horarios = db.query(models.HorarioDisponivel).filter(models.HorarioDisponivel.id_medico.isnot(None)).offset(skip).limit(limit).all()
     return horarios
 
 @app.put("/horarios/{id_horario}", response_model=schemas.HorarioDisponivel)
