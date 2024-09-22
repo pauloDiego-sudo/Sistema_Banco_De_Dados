@@ -35,10 +35,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 # Função para criar o token JWT
-def criar_token_acesso(data: dict, profile: str):
+def criar_token_acesso(data: dict, profile: str, user_id: int):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "profile": profile})
+    to_encode.update({"exp": expire, "profile": profile, "user_id": user_id})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -46,23 +46,27 @@ def criar_token_acesso(data: dict, profile: str):
 async def autenticar_usuario(db: Session, form_data: OAuth2PasswordRequestForm = Depends()):
     usuario = None
     profile = None
+    user_id = None
 
     # Check Paciente
     usuario = db.query(models.Paciente).filter(models.Paciente.email == form_data.username).first()
     if usuario and usuario.senha == form_data.password:
         profile = "Paciente"
+        user_id = usuario.id_paciente
     
     # Check Medico if not found
     if not usuario:
         usuario = db.query(models.Medico).filter(models.Medico.email == form_data.username).first()
         if usuario and usuario.senha == form_data.password:
             profile = "Medico"
+            user_id = usuario.id_medico
     
     # Check Admin if not found
     if not usuario:
         usuario = db.query(models.Admin).filter(models.Admin.email_admin == form_data.username).first()
         if usuario and usuario.senha_admin == form_data.password:
             profile = "Admin"
+            user_id = usuario.id_admin
 
     if not usuario or not profile:
         raise HTTPException(
@@ -73,7 +77,7 @@ async def autenticar_usuario(db: Session, form_data: OAuth2PasswordRequestForm =
     
     # Use email_admin for Admin, email for others
     email = usuario.email_admin if profile == "Admin" else usuario.email
-    token_acesso = criar_token_acesso(data={"sub": email}, profile=profile)
+    token_acesso = criar_token_acesso(data={"sub": email}, profile=profile, user_id=user_id)
     return {"access_token": token_acesso, "token_type": "bearer"}
 
 # Dependency para obter o usuário atual a partir do token JWT
@@ -104,9 +108,10 @@ async def obter_usuario_atual(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         profile: str = payload.get("profile")
-        if email is None or profile is None:
+        user_id: int = payload.get("user_id")
+        if email is None or profile is None or user_id is None:
             raise credentials_exception
-        token_data = schemas.TokenData(email=email, profile=profile)
+        token_data = schemas.TokenData(email=email, profile=profile, user_id=user_id)
     except JWTError:
         raise credentials_exception
 
@@ -650,6 +655,7 @@ async def finalizar_consulta(
     db.commit()
     db.refresh(db_consulta)
     return db_consulta
+
 async def agendar_consulta(id_medico: int, consulta: schemas.ConsultaCreate, 
                          db: Session = Depends(database.get_db), usuario_atual: models.Paciente = Depends(obter_usuario_atual)):
     # 1. Verificar se o médico existe
@@ -706,88 +712,88 @@ async def cancelar_consulta(id_consulta: int, db: Session = Depends(database.get
 # Rotas de Gerenciamento de Consultas
 # --------------------------------
 
-@app.get("/pacientes/{id_paciente}/consultas", response_model=List[schemas.Consulta])
-async def listar_consultas_paciente(
-    id_paciente: int,
-    db: Session = Depends(database.get_db),
-    usuario_atual: models.Paciente = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
-):
-    # 1. Verificar se o usuário atual é o paciente ou um administrador
-    if usuario_atual.id_paciente != id_paciente and not isinstance(usuario_atual, models.Admin):
-        raise HTTPException(status_code=403, detail="Você não tem permissão para acessar as consultas deste paciente")
+# @app.get("/pacientes/{id_paciente}/consultas", response_model=List[schemas.Consulta])
+# async def listar_consultas_paciente(
+#     id_paciente: int,
+#     db: Session = Depends(database.get_db),
+#     usuario_atual: models.Paciente = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
+# ):
+#     # 1. Verificar se o usuário atual é o paciente ou um administrador
+#     if usuario_atual.id_paciente != id_paciente and not isinstance(usuario_atual, models.Admin):
+#         raise HTTPException(status_code=403, detail="Você não tem permissão para acessar as consultas deste paciente")
 
-    # 2. Obter as consultas do paciente
-    consultas = db.query(models.Consulta).filter(models.Consulta.id_paciente == id_paciente).all()
-    return consultas
+#     # 2. Obter as consultas do paciente
+#     consultas = db.query(models.Consulta).filter(models.Consulta.id_paciente == id_paciente).all()
+#     return consultas
 
-@app.get("/medicos/{id_medico}/consultas", response_model=List[schemas.Consulta])
-async def listar_consultas_medico(
-    id_medico: int,
-    db: Session = Depends(database.get_db),
-    usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])
-):
-    # Verificar se o usuário atual é o médico ou um administrador
-    if isinstance(usuario_atual, models.Medico):
-        if usuario_atual.id_medico != id_medico:
-            raise HTTPException(status_code=403, detail="Você só pode listar suas próprias consultas")
-        # Médico listando suas próprias consultas
-        consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == usuario_atual.id_medico).all()
-    else:
-        # Administrador pode listar consultas de qualquer médico
-        consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == id_medico).all()
+# @app.get("/medicos/{id_medico}/consultas", response_model=List[schemas.Consulta])
+# async def listar_consultas_medico(
+#     id_medico: int,
+#     db: Session = Depends(database.get_db),
+#     usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])
+# ):
+#     # Verificar se o usuário atual é o médico ou um administrador
+#     if isinstance(usuario_atual, models.Medico):
+#         if usuario_atual.id_medico != id_medico:
+#             raise HTTPException(status_code=403, detail="Você só pode listar suas próprias consultas")
+#         # Médico listando suas próprias consultas
+#         consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == usuario_atual.id_medico).all()
+#     else:
+#         # Administrador pode listar consultas de qualquer médico
+#         consultas = db.query(models.Consulta).filter(models.Consulta.id_medico == id_medico).all()
     
-    return consultas
+#     return consultas
 
-@app.put("/consultas/{id_consulta}/confirmar", response_model=schemas.Consulta)
-async def confirmar_consulta(id_consulta: int, db: Session = Depends(database.get_db), usuario_atual: models.Medico = Depends(obter_usuario_atual)):
-    # 1. Verificar se o usuário atual é o médico da consulta
-    db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
-    if db_consulta is None:
-        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+# @app.put("/consultas/{id_consulta}/confirmar", response_model=schemas.Consulta)
+# async def confirmar_consulta(id_consulta: int, db: Session = Depends(database.get_db), usuario_atual: models.Medico = Depends(obter_usuario_atual)):
+#     # 1. Verificar se o usuário atual é o médico da consulta
+#     db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
+#     if db_consulta is None:
+#         raise HTTPException(status_code=404, detail="Consulta não encontrada")
 
-    if usuario_atual.id_medico != db_consulta.id_medico:
-        raise HTTPException(status_code=403, detail="Você não tem permissão para confirmar esta consulta")
+#     if usuario_atual.id_medico != db_consulta.id_medico:
+#         raise HTTPException(status_code=403, detail="Você não tem permissão para confirmar esta consulta")
 
-    # 2. Confirmar a consulta
-    db_consulta.status = "confirmada"
-    db.add(db_consulta)
-    db.commit()
-    db.refresh(db_consulta)
-    return db_consulta
+#     # 2. Confirmar a consulta
+#     db_consulta.status = "confirmada"
+#     db.add(db_consulta)
+#     db.commit()
+#     db.refresh(db_consulta)
+#     return db_consulta
 
-@app.put("/consultas/{id_consulta}/iniciar", response_model=schemas.Consulta)
-async def iniciar_consulta(id_consulta: int, db: Session = Depends(database.get_db), usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])):
-    db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
-    if db_consulta is None:
-        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+# @app.put("/consultas/{id_consulta}/iniciar", response_model=schemas.Consulta)
+# async def iniciar_consulta(id_consulta: int, db: Session = Depends(database.get_db), usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])):
+#     db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
+#     if db_consulta is None:
+#         raise HTTPException(status_code=404, detail="Consulta não encontrada")
 
-    if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != db_consulta.id_medico:
-        raise HTTPException(status_code=403, detail="Você não tem permissão para iniciar esta consulta")
+#     if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != db_consulta.id_medico:
+#         raise HTTPException(status_code=403, detail="Você não tem permissão para iniciar esta consulta")
 
-    if db_consulta.status != "confirmada":
-        raise HTTPException(status_code=400, detail="Consulta não pode ser iniciada pois não está confirmada")
+#     if db_consulta.status != "confirmada":
+#         raise HTTPException(status_code=400, detail="Consulta não pode ser iniciada pois não está confirmada")
 
-    db_consulta.status = "em andamento"
-    db.add(db_consulta)
-    db.commit()
-    db.refresh(db_consulta)
-    return db_consulta
+#     db_consulta.status = "em andamento"
+#     db.add(db_consulta)
+#     db.commit()
+#     db.refresh(db_consulta)
+#     return db_consulta
 
-@app.put("/consultas/{id_consulta}/finalizar", response_model=schemas.Consulta)
-async def finalizar_consulta(id_consulta: int, observacoes: str, db: Session = Depends(database.get_db), usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])):
-    db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
-    if db_consulta is None:
-        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+# @app.put("/consultas/{id_consulta}/finalizar", response_model=schemas.Consulta)
+# async def finalizar_consulta(id_consulta: int, observacoes: str, db: Session = Depends(database.get_db), usuario_atual: Union[models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Medico", "Admin"])):
+#     db_consulta = crud.obter_consulta(db, id_consulta=id_consulta)
+#     if db_consulta is None:
+#         raise HTTPException(status_code=404, detail="Consulta não encontrada")
 
-    if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != db_consulta.id_medico:
-        raise HTTPException(status_code=403, detail="Você não tem permissão para finalizar esta consulta")
+#     if isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != db_consulta.id_medico:
+#         raise HTTPException(status_code=403, detail="Você não tem permissão para finalizar esta consulta")
 
-    if db_consulta.status != "em andamento":
-        raise HTTPException(status_code=400, detail="Consulta não pode ser finalizada pois não está em andamento")
+#     if db_consulta.status != "em andamento":
+#         raise HTTPException(status_code=400, detail="Consulta não pode ser finalizada pois não está em andamento")
 
-    db_consulta.status = "finalizada"
-    db_consulta.observacoes = observacoes
-    db.add(db_consulta)
-    db.commit()
-    db.refresh(db_consulta)
-    return db_consulta
+#     db_consulta.status = "finalizada"
+#     db_consulta.observacoes = observacoes
+#     db.add(db_consulta)
+#     db.commit()
+#     db.refresh(db_consulta)
+#     return db_consulta

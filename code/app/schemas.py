@@ -92,6 +92,7 @@ class Admin(AdminBase):
 class TokenData(BaseModel):
     email: Optional[str] = None
     profile: Optional[str] = None
+    user_id: Optional[int] = None
 
 class DeleteMessage(BaseModel):
     message: str
