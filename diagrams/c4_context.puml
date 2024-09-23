@@ -7,9 +7,13 @@ title Context Diagram
 
 actor User
 rectangle "Sistema Médico" {
-    rectangle "FastAPI Application" as FastAPIApp
+    rectangle "Frontend (NextJS)" as NextJS
+    rectangle "Backend (FastAPI)" as FastAPIApp
+    database "PostgreSQL" as PostgreSQL
 }
 
-User --> FastAPIApp : Uses
+User --> NextJS : Uses
+NextJS --> FastAPIApp : Uses
+FastAPIApp --> PostgreSQL : Uses
 
 @enduml

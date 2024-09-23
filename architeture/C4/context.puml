@@ -9,7 +9,7 @@ System_Boundary(c1, "Sistema de Gerenciamento de Consultas Médicas") {
 
   Person(paciente, "Paciente", "Agenda consultas, visualiza histórico")
   Person(medico, "Médico", "Gerencia agenda, adiciona observações em consultas")
-  Person(admin, "Administrador", "Gerencia o sistema, adiciona médicos, supervisiona consultas e horários")
+  Person(admin, "Administrador", "Gerencia o sistema, gerencia médicos e pacientes, supervisiona consultas e horários")
 
   System(frontend, "Frontend", "Interface web para pacientes, médicos e administradores")
   SystemDb(banco_dados, "Banco de Dados", "Armazena informações de pacientes, médicos, consultas, horários e administradores")
