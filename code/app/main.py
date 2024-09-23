@@ -548,7 +548,34 @@ async def agendar_consulta(
     db: Session = Depends(database.get_db),
     usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
 ):
-    # Verificar disponibilidade do médico (implementar lógica aqui)
+    # Verificar se o médico existe
+    db_medico = crud.obter_medico(db, id_medico=id_medico)
+    if db_medico is None:
+        raise HTTPException(status_code=404, detail="Médico não encontrado")
+
+    # Verificar se o horário está disponível
+    horario_disponivel = db.query(models.HorarioDisponivel).filter(
+        models.HorarioDisponivel.id_medico == id_medico,
+        models.HorarioDisponivel.data_disponivel == consulta.data_consulta,
+        models.HorarioDisponivel.horario_inicial <= consulta.horario_consulta,
+        models.HorarioDisponivel.horario_final > consulta.horario_consulta
+    ).first()
+
+    if horario_disponivel is None:
+        raise HTTPException(status_code=400, detail="Horário não disponível para este médico")
+
+    # Verificar se já existe uma consulta agendada neste horário
+    consulta_existente = db.query(models.Consulta).filter(
+        models.Consulta.id_medico == id_medico,
+        models.Consulta.data_consulta == consulta.data_consulta,
+        models.Consulta.horario_consulta == consulta.horario_consulta,
+        models.Consulta.status.in_(["agendada", "confirmada", "em andamento"])
+    ).first()
+
+    if consulta_existente:
+        raise HTTPException(status_code=400, detail="Já existe uma consulta agendada neste horário")
+
+    # Criar a consulta
     if isinstance(usuario_atual, models.Admin):
         # If the user is an Admin, use the id_paciente from the consulta object
         consulta.id_paciente = consulta.id_paciente
@@ -556,8 +583,9 @@ async def agendar_consulta(
         # If the user is a Paciente, use their own id
         consulta.id_paciente = usuario_atual.id_paciente
     consulta.id_medico = id_medico
-    consulta.status = "agendada"  # Set initial status
+    consulta.status = "agendada"
     db_consulta = crud.criar_consulta(db=db, consulta=consulta)
+
     return db_consulta
 
 @app.put("/consultas/{id_consulta}/cancelar", response_model=schemas.Consulta)
