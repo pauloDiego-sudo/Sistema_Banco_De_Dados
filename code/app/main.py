@@ -522,22 +522,22 @@ def listar_horarios_disponiveis_medico(
     horarios = db.query(models.HorarioDisponivel).filter(models.HorarioDisponivel.id_medico == id_medico).all()
     return horarios
 
-@app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
-async def agendar_consulta(
-    id_medico: int, 
-    consulta: schemas.ConsultaCreate, 
-    db: Session = Depends(database.get_db), 
-    usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
-):
-    # Verificar disponibilidade do médico (implementar lógica aqui)
-    if isinstance(usuario_atual, models.Admin):
-        # If the user is an Admin, use the id_paciente from the consulta object
-        consulta.id_paciente = consulta.id_paciente
-    else:
-        # If the user is a Paciente, use their own id
-        consulta.id_paciente = usuario_atual.id_paciente
-    db_consulta = crud.criar_consulta(db=db, consulta=consulta)
-    return db_consulta
+# @app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
+# async def agendar_consulta(
+#     id_medico: int, 
+#     consulta: schemas.ConsultaCreate, 
+#     db: Session = Depends(database.get_db), 
+#     usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
+# ):
+#     # Verificar disponibilidade do médico (implementar lógica aqui)
+#     if isinstance(usuario_atual, models.Admin):
+#         # If the user is an Admin, use the id_paciente from the consulta object
+#         consulta.id_paciente = consulta.id_paciente
+#     else:
+#         # If the user is a Paciente, use their own id
+#         consulta.id_paciente = usuario_atual.id_paciente
+#     db_consulta = crud.criar_consulta(db=db, consulta=consulta)
+#     return db_consulta
 
 @app.put("/consultas/{id_consulta}/cancelar", response_model=schemas.Consulta)
 async def cancelar_consulta(
@@ -656,14 +656,19 @@ async def finalizar_consulta(
     db.refresh(db_consulta)
     return db_consulta
 
-async def agendar_consulta(id_medico: int, consulta: schemas.ConsultaCreate, 
-                         db: Session = Depends(database.get_db), usuario_atual: models.Paciente = Depends(obter_usuario_atual)):
-    # 1. Verificar se o médico existe
+@app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
+async def agendar_consulta(
+    id_medico: int, 
+    consulta: schemas.ConsultaCreate, 
+    db: Session = Depends(database.get_db),
+    usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
+):
+    # Verificar se o médico existe
     db_medico = crud.obter_medico(db, id_medico=id_medico)
     if db_medico is None:
         raise HTTPException(status_code=404, detail="Médico não encontrado")
 
-    # 2. Verificar se o horário está disponível
+    # Verificar se o horário está disponível
     horario_disponivel = db.query(models.HorarioDisponivel).filter(
         models.HorarioDisponivel.id_medico == id_medico,
         models.HorarioDisponivel.data_disponivel == consulta.data_consulta,
@@ -674,7 +679,7 @@ async def agendar_consulta(id_medico: int, consulta: schemas.ConsultaCreate,
     if horario_disponivel is None:
         raise HTTPException(status_code=400, detail="Horário não disponível para este médico")
 
-    # 3. Verificar se o paciente já possui uma consulta agendada no mesmo horário
+    # Verificar se o paciente já possui uma consulta agendada no mesmo horário
     consulta_existente = db.query(models.Consulta).filter(
         models.Consulta.id_paciente == usuario_atual.id_paciente,
         models.Consulta.data_consulta == consulta.data_consulta,
@@ -684,10 +689,19 @@ async def agendar_consulta(id_medico: int, consulta: schemas.ConsultaCreate,
     if consulta_existente:
         raise HTTPException(status_code=400, detail="Paciente já possui uma consulta agendada neste horário")
 
-    # 4. Criar a consulta
-    consulta.id_paciente = usuario_atual.id_paciente
-    consulta.id_medico = id_medico 
+    # Criar a consulta
+    if isinstance(usuario_atual, models.Admin):
+        # If the user is an Admin, use the id_paciente from the consulta object
+        consulta.id_paciente = consulta.id_paciente
+    else:
+        # If the user is a Paciente, use their own id
+        consulta.id_paciente = usuario_atual.id_paciente
+    consulta.id_medico = id_medico
     db_consulta = crud.criar_consulta(db=db, consulta=consulta)
+
+    # Remover o horário disponível
+    db.delete(horario_disponivel)
+    db.commit()
 
     return db_consulta
 

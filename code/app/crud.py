@@ -98,7 +98,7 @@ def deletar_medico(db: Session, id_medico: int):
 
     db.delete(db_medico)
     db.commit()
-    return {"message": "Médico deletado com sucesso"}
+    return db_medico  # Return the deleted medico object instead of a message
 
 # --------------------------------
 # CRUD para Consulta
