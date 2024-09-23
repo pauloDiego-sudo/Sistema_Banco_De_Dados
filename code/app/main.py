@@ -519,25 +519,46 @@ def listar_horarios_disponiveis_medico(
     db: Session = Depends(database.get_db),
     usuario_atual: Union[models.Paciente, models.Medico, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Medico", "Admin"])
 ):
+    # Get all available time slots for the doctor
     horarios = db.query(models.HorarioDisponivel).filter(models.HorarioDisponivel.id_medico == id_medico).all()
-    return horarios
+    
+    # Get all scheduled consultations for the doctor
+    consultas = db.query(models.Consulta).filter(
+        models.Consulta.id_medico == id_medico,
+        models.Consulta.status.in_(["agendada", "confirmada", "em andamento"])
+    ).all()
+    
+    # Remove time slots that are already scheduled
+    horarios_disponiveis = [
+        horario for horario in horarios
+        if not any(
+            consulta.data_consulta == horario.data_disponivel and
+            consulta.horario_consulta >= horario.horario_inicial and
+            consulta.horario_consulta < horario.horario_final
+            for consulta in consultas
+        )
+    ]
+    
+    return horarios_disponiveis
 
-# @app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
-# async def agendar_consulta(
-#     id_medico: int, 
-#     consulta: schemas.ConsultaCreate, 
-#     db: Session = Depends(database.get_db), 
-#     usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
-# ):
-#     # Verificar disponibilidade do médico (implementar lógica aqui)
-#     if isinstance(usuario_atual, models.Admin):
-#         # If the user is an Admin, use the id_paciente from the consulta object
-#         consulta.id_paciente = consulta.id_paciente
-#     else:
-#         # If the user is a Paciente, use their own id
-#         consulta.id_paciente = usuario_atual.id_paciente
-#     db_consulta = crud.criar_consulta(db=db, consulta=consulta)
-#     return db_consulta
+@app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
+async def agendar_consulta(
+    id_medico: int, 
+    consulta: schemas.ConsultaCreate, 
+    db: Session = Depends(database.get_db),
+    usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
+):
+    # Verificar disponibilidade do médico (implementar lógica aqui)
+    if isinstance(usuario_atual, models.Admin):
+        # If the user is an Admin, use the id_paciente from the consulta object
+        consulta.id_paciente = consulta.id_paciente
+    else:
+        # If the user is a Paciente, use their own id
+        consulta.id_paciente = usuario_atual.id_paciente
+    consulta.id_medico = id_medico
+    consulta.status = "agendada"  # Set initial status
+    db_consulta = crud.criar_consulta(db=db, consulta=consulta)
+    return db_consulta
 
 @app.put("/consultas/{id_consulta}/cancelar", response_model=schemas.Consulta)
 async def cancelar_consulta(
@@ -555,11 +576,11 @@ async def cancelar_consulta(
         elif isinstance(usuario_atual, models.Medico) and usuario_atual.id_medico != db_consulta.id_medico:
             raise HTTPException(status_code=403, detail="Você não tem permissão para cancelar esta consulta")
 
-    # Cancel the consulta
     db_consulta.status = "cancelada"
     db.add(db_consulta)
     db.commit()
     db.refresh(db_consulta)
+    
     return db_consulta
 
 @app.get("/pacientes/{id_paciente}/consultas", response_model=List[schemas.Consulta])
@@ -656,54 +677,54 @@ async def finalizar_consulta(
     db.refresh(db_consulta)
     return db_consulta
 
-@app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
-async def agendar_consulta(
-    id_medico: int, 
-    consulta: schemas.ConsultaCreate, 
-    db: Session = Depends(database.get_db),
-    usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
-):
-    # Verificar se o médico existe
-    db_medico = crud.obter_medico(db, id_medico=id_medico)
-    if db_medico is None:
-        raise HTTPException(status_code=404, detail="Médico não encontrado")
+# @app.post("/consultas/{id_medico}/agendar", response_model=schemas.Consulta)
+# async def agendar_consulta(
+#     id_medico: int, 
+#     consulta: schemas.ConsultaCreate, 
+#     db: Session = Depends(database.get_db),
+#     usuario_atual: Union[models.Paciente, models.Admin] = Security(obter_usuario_atual, scopes=["Paciente", "Admin"])
+# ):
+#     # Verificar se o médico existe
+#     db_medico = crud.obter_medico(db, id_medico=id_medico)
+#     if db_medico is None:
+#         raise HTTPException(status_code=404, detail="Médico não encontrado")
 
-    # Verificar se o horário está disponível
-    horario_disponivel = db.query(models.HorarioDisponivel).filter(
-        models.HorarioDisponivel.id_medico == id_medico,
-        models.HorarioDisponivel.data_disponivel == consulta.data_consulta,
-        models.HorarioDisponivel.horario_inicial <= consulta.horario_consulta,
-        models.HorarioDisponivel.horario_final >= consulta.horario_consulta
-    ).first()
+#     # Verificar se o horário está disponível
+#     horario_disponivel = db.query(models.HorarioDisponivel).filter(
+#         models.HorarioDisponivel.id_medico == id_medico,
+#         models.HorarioDisponivel.data_disponivel == consulta.data_consulta,
+#         models.HorarioDisponivel.horario_inicial <= consulta.horario_consulta,
+#         models.HorarioDisponivel.horario_final >= consulta.horario_consulta
+#     ).first()
 
-    if horario_disponivel is None:
-        raise HTTPException(status_code=400, detail="Horário não disponível para este médico")
+#     if horario_disponivel is None:
+#         raise HTTPException(status_code=400, detail="Horário não disponível para este médico")
 
-    # Verificar se o paciente já possui uma consulta agendada no mesmo horário
-    consulta_existente = db.query(models.Consulta).filter(
-        models.Consulta.id_paciente == usuario_atual.id_paciente,
-        models.Consulta.data_consulta == consulta.data_consulta,
-        models.Consulta.horario_consulta == consulta.horario_consulta
-    ).first()
+#     # Verificar se o paciente já possui uma consulta agendada no mesmo horário
+#     consulta_existente = db.query(models.Consulta).filter(
+#         models.Consulta.id_paciente == usuario_atual.id_paciente,
+#         models.Consulta.data_consulta == consulta.data_consulta,
+#         models.Consulta.horario_consulta == consulta.horario_consulta
+#     ).first()
 
-    if consulta_existente:
-        raise HTTPException(status_code=400, detail="Paciente já possui uma consulta agendada neste horário")
+#     if consulta_existente:
+#         raise HTTPException(status_code=400, detail="Paciente já possui uma consulta agendada neste horário")
 
-    # Criar a consulta
-    if isinstance(usuario_atual, models.Admin):
-        # If the user is an Admin, use the id_paciente from the consulta object
-        consulta.id_paciente = consulta.id_paciente
-    else:
-        # If the user is a Paciente, use their own id
-        consulta.id_paciente = usuario_atual.id_paciente
-    consulta.id_medico = id_medico
-    db_consulta = crud.criar_consulta(db=db, consulta=consulta)
+#     # Criar a consulta
+#     if isinstance(usuario_atual, models.Admin):
+#         # If the user is an Admin, use the id_paciente from the consulta object
+#         consulta.id_paciente = consulta.id_paciente
+#     else:
+#         # If the user is a Paciente, use their own id
+#         consulta.id_paciente = usuario_atual.id_paciente
+#     consulta.id_medico = id_medico
+#     db_consulta = crud.criar_consulta(db=db, consulta=consulta)
 
-    # Remover o horário disponível
-    db.delete(horario_disponivel)
-    db.commit()
+#     # Remover o horário disponível
+#     db.delete(horario_disponivel)
+#     db.commit()
 
-    return db_consulta
+#     return db_consulta
 
 @app.put("/consultas/{id_consulta}/cancelar", response_model=schemas.Consulta)
 async def cancelar_consulta(id_consulta: int, db: Session = Depends(database.get_db), usuario_atual: models.Paciente = Depends(obter_usuario_atual)):
